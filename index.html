@@ -278,12 +278,14 @@
             value="skylab"
           />
           <button id="search-button" type="button">Start Search</button>
+          <button type="button">Start Search</button>
         </div>
 
         <div class="metrics">
           <div class="metric-card">
             <span>Websites scanned</span>
             <strong id="scanned-count">0</strong>
+            <strong>312+</strong>
           </div>
           <div class="metric-card">
             <span>Found matches</span>
@@ -410,6 +412,42 @@
           template: "producthunt.com/@{username}",
           foundDetail: "Upvotes and collections visible.",
           missingDetail: "Profile not found.",
+      const results = [
+        {
+          site: "GitHub",
+          handle: "github.com/skylab",
+          status: "found",
+          detail: "Active profile with 42 repositories.",
+        },
+        {
+          site: "Reddit",
+          handle: "reddit.com/u/skylab",
+          status: "not-found",
+          detail: "No public profile detected.",
+        },
+        {
+          site: "Steam",
+          handle: "steamcommunity.com/id/skylab",
+          status: "found",
+          detail: "Profile online, last seen 2h ago.",
+        },
+        {
+          site: "Behance",
+          handle: "behance.net/skylab",
+          status: "not-found",
+          detail: "Username not registered.",
+        },
+        {
+          site: "Hacker News",
+          handle: "news.ycombinator.com/user?id=skylab",
+          status: "found",
+          detail: "48 submissions, 215 karma.",
+        },
+        {
+          site: "Twitch",
+          handle: "twitch.tv/skylab",
+          status: "checking",
+          detail: "Queued for verification.",
         },
       ];
 
@@ -572,6 +610,7 @@
       });
 
       runSearch();
+      renderResults();
     </script>
   </body>
 </html>
