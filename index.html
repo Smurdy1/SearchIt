@@ -271,17 +271,20 @@
       <section class="search-panel">
         <div class="search-controls">
           <input
+            id="username-input"
             type="text"
             placeholder="Enter a username (ex: skylab)"
             aria-label="Username"
             value="skylab"
           />
+          <button id="search-button" type="button">Start Search</button>
           <button type="button">Start Search</button>
         </div>
 
         <div class="metrics">
           <div class="metric-card">
             <span>Websites scanned</span>
+            <strong id="scanned-count">0</strong>
             <strong>312+</strong>
           </div>
           <div class="metric-card">
@@ -325,6 +328,90 @@
     </main>
 
     <script>
+      const siteCatalog = [
+        {
+          site: "GitHub",
+          template: "github.com/{username}",
+          foundDetail: "Public profile with repositories.",
+          missingDetail: "No profile located.",
+        },
+        {
+          site: "Reddit",
+          template: "reddit.com/u/{username}",
+          foundDetail: "Active threads and comments.",
+          missingDetail: "Username unclaimed.",
+        },
+        {
+          site: "Steam",
+          template: "steamcommunity.com/id/{username}",
+          foundDetail: "Profile online with badges.",
+          missingDetail: "No account found.",
+        },
+        {
+          site: "Behance",
+          template: "behance.net/{username}",
+          foundDetail: "Portfolio with recent projects.",
+          missingDetail: "No portfolios match.",
+        },
+        {
+          site: "Hacker News",
+          template: "news.ycombinator.com/user?id={username}",
+          foundDetail: "Karma history detected.",
+          missingDetail: "No user activity.",
+        },
+        {
+          site: "Twitch",
+          template: "twitch.tv/{username}",
+          foundDetail: "Channel streaming this week.",
+          missingDetail: "Channel not created.",
+        },
+        {
+          site: "Instagram",
+          template: "instagram.com/{username}",
+          foundDetail: "Story highlights available.",
+          missingDetail: "No public profile.",
+        },
+        {
+          site: "TikTok",
+          template: "tiktok.com/@{username}",
+          foundDetail: "Recent clips detected.",
+          missingDetail: "No matches returned.",
+        },
+        {
+          site: "YouTube",
+          template: "youtube.com/@{username}",
+          foundDetail: "Channel with uploads.",
+          missingDetail: "No channel found.",
+        },
+        {
+          site: "Pinterest",
+          template: "pinterest.com/{username}",
+          foundDetail: "Boards saved recently.",
+          missingDetail: "Profile unavailable.",
+        },
+        {
+          site: "Medium",
+          template: "medium.com/@{username}",
+          foundDetail: "Recent articles detected.",
+          missingDetail: "No author profile.",
+        },
+        {
+          site: "Stack Overflow",
+          template: "stackoverflow.com/users/{username}",
+          foundDetail: "Reputation and answers listed.",
+          missingDetail: "No user record.",
+        },
+        {
+          site: "Dribbble",
+          template: "dribbble.com/{username}",
+          foundDetail: "Shots and likes available.",
+          missingDetail: "No designer found.",
+        },
+        {
+          site: "Product Hunt",
+          template: "producthunt.com/@{username}",
+          foundDetail: "Upvotes and collections visible.",
+          missingDetail: "Profile not found.",
       const results = [
         {
           site: "GitHub",
@@ -369,11 +456,27 @@
       const filterButtons = document.querySelectorAll(".filter-toggle button");
       const foundCount = document.getElementById("found-count");
       const notFoundCount = document.getElementById("not-found-count");
+      const scannedCount = document.getElementById("scanned-count");
+      const usernameInput = document.getElementById("username-input");
+      const searchButton = document.getElementById("search-button");
+      const runtimeDisplay = document.querySelector(
+        ".metric-card:nth-child(4) strong"
+      );
+
+      let results = [];
+      let timerId;
+      let elapsedSeconds = 0;
 
       const sortOrder = {
         found: 0,
         "not-found": 1,
         checking: 2,
+      };
+
+      const updateRuntime = () => {
+        const minutes = String(Math.floor(elapsedSeconds / 60)).padStart(2, "0");
+        const seconds = String(elapsedSeconds % 60).padStart(2, "0");
+        runtimeDisplay.textContent = `${minutes}:${seconds}`;
       };
 
       const renderResults = () => {
@@ -415,6 +518,81 @@
         ).length;
       };
 
+      const buildResults = (username) =>
+        siteCatalog.map((site) => ({
+          site: site.site,
+          handle: site.template.replace("{username}", username),
+          status: "checking",
+          detail: "Scanning source…",
+          siteMeta: site,
+        }));
+
+      const isNotFoundResponse = (text) => {
+        const normalized = text.toLowerCase();
+        return (
+          normalized.includes("status: 404") ||
+          normalized.includes("404 not found") ||
+          normalized.includes("page not found") ||
+          normalized.includes("user not found")
+        );
+      };
+
+      const checkSite = async (item) => {
+        const targetUrl = `https://${item.handle}`;
+        const proxyUrl = `https://r.jina.ai/http://${targetUrl}`;
+        try {
+          const response = await fetch(proxyUrl);
+          const body = await response.text();
+          const found = response.ok && !isNotFoundResponse(body);
+          return {
+            ...item,
+            status: found ? "found" : "not-found",
+            detail: found ? item.siteMeta.foundDetail : item.siteMeta.missingDetail,
+          };
+        } catch (error) {
+          return {
+            ...item,
+            status: "not-found",
+            detail: "Request failed or blocked.",
+          };
+        }
+      };
+
+      const startTimer = () => {
+        clearInterval(timerId);
+        elapsedSeconds = 0;
+        updateRuntime();
+        timerId = setInterval(() => {
+          elapsedSeconds += 1;
+          updateRuntime();
+        }, 1000);
+      };
+
+      const stopTimer = () => {
+        clearInterval(timerId);
+      };
+
+      const runSearch = async () => {
+        const username = usernameInput.value.trim() || "skylab";
+        startTimer();
+        results = buildResults(username);
+        scannedCount.textContent = results.length;
+        renderResults();
+
+        let completed = 0;
+        await Promise.all(
+          results.map(async (item, index) => {
+            const resolved = await checkSite(item);
+            results[index] = resolved;
+            completed += 1;
+            renderResults();
+            if (completed === results.length) {
+              stopTimer();
+            }
+          })
+        );
+      };
+
       sortSelect.addEventListener("change", renderResults);
       filterButtons.forEach((button) => {
         button.addEventListener("click", () => {
@@ -424,6 +602,14 @@
         });
       });
 
+      searchButton.addEventListener("click", runSearch);
+      usernameInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          runSearch();
+        }
+      });
+
+      runSearch();
       renderResults();
     </script>
   </body>
