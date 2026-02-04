@@ -271,13 +271,12 @@
       <section class="search-panel">
         <div class="search-controls">
           <input
-            id="username-input"
             type="text"
             placeholder="Enter a username (ex: skylab)"
             aria-label="Username"
             value="skylab"
           />
-          <button id="search-button" type="button">Start Search</button>
+          <button type="button">Start Search</button>
         </div>
 
         <div class="metrics">
@@ -326,96 +325,42 @@
     </main>
 
     <script>
-      const siteCatalog = [
+      const results = [
         {
           site: "GitHub",
-          template: "github.com/{username}",
-          foundDetail: "Public profile with repositories.",
-          missingDetail: "No profile located.",
+          handle: "github.com/skylab",
+          status: "found",
+          detail: "Active profile with 42 repositories.",
         },
         {
           site: "Reddit",
-          template: "reddit.com/u/{username}",
-          foundDetail: "Active threads and comments.",
-          missingDetail: "Username unclaimed.",
+          handle: "reddit.com/u/skylab",
+          status: "not-found",
+          detail: "No public profile detected.",
         },
         {
           site: "Steam",
-          template: "steamcommunity.com/id/{username}",
-          foundDetail: "Profile online with badges.",
-          missingDetail: "No account found.",
+          handle: "steamcommunity.com/id/skylab",
+          status: "found",
+          detail: "Profile online, last seen 2h ago.",
         },
         {
           site: "Behance",
-          template: "behance.net/{username}",
-          foundDetail: "Portfolio with recent projects.",
-          missingDetail: "No portfolios match.",
+          handle: "behance.net/skylab",
+          status: "not-found",
+          detail: "Username not registered.",
         },
         {
           site: "Hacker News",
-          template: "news.ycombinator.com/user?id={username}",
-          foundDetail: "Karma history detected.",
-          missingDetail: "No user activity.",
+          handle: "news.ycombinator.com/user?id=skylab",
+          status: "found",
+          detail: "48 submissions, 215 karma.",
         },
         {
           site: "Twitch",
-          template: "twitch.tv/{username}",
-          foundDetail: "Channel streaming this week.",
-          missingDetail: "Channel not created.",
-        },
-        {
-          site: "Instagram",
-          template: "instagram.com/{username}",
-          foundDetail: "Story highlights available.",
-          missingDetail: "No public profile.",
-        },
-        {
-          site: "TikTok",
-          template: "tiktok.com/@{username}",
-          foundDetail: "Recent clips detected.",
-          missingDetail: "No matches returned.",
-        },
-        {
-          site: "YouTube",
-          template: "youtube.com/@{username}",
-          foundDetail: "Channel with uploads.",
-          missingDetail: "No channel found.",
-        },
-        {
-          site: "Pinterest",
-          template: "pinterest.com/{username}",
-          foundDetail: "Boards saved recently.",
-          missingDetail: "Profile unavailable.",
-        },
-        {
-          site: "Medium",
-          template: "medium.com/@{username}",
-          foundDetail: "Recent articles detected.",
-          missingDetail: "No author profile.",
-        },
-        {
-          site: "Stack Overflow",
-          template: "stackoverflow.com/users/{username}",
-          foundDetail: "Reputation and answers listed.",
-          missingDetail: "No user record.",
-        },
-        {
-          site: "Discord",
-          template: "discord.com/users/{username}",
-          foundDetail: "Linked account from username.",
-          missingDetail: "Username not associated.",
-        },
-        {
-          site: "Dribbble",
-          template: "dribbble.com/{username}",
-          foundDetail: "Shots and likes available.",
-          missingDetail: "No designer found.",
-        },
-        {
-          site: "Product Hunt",
-          template: "producthunt.com/@{username}",
-          foundDetail: "Upvotes and collections visible.",
-          missingDetail: "Profile not found.",
+          handle: "twitch.tv/skylab",
+          status: "checking",
+          detail: "Queued for verification.",
         },
       ];
 
@@ -424,26 +369,11 @@
       const filterButtons = document.querySelectorAll(".filter-toggle button");
       const foundCount = document.getElementById("found-count");
       const notFoundCount = document.getElementById("not-found-count");
-      const usernameInput = document.getElementById("username-input");
-      const searchButton = document.getElementById("search-button");
-      const runtimeDisplay = document.querySelector(
-        ".metric-card:nth-child(4) strong"
-      );
-
-      let results = [];
-      let timerId;
-      let elapsedSeconds = 0;
 
       const sortOrder = {
         found: 0,
         "not-found": 1,
         checking: 2,
-      };
-
-      const updateRuntime = () => {
-        const minutes = String(Math.floor(elapsedSeconds / 60)).padStart(2, "0");
-        const seconds = String(elapsedSeconds % 60).padStart(2, "0");
-        runtimeDisplay.textContent = `${minutes}:${seconds}`;
       };
 
       const renderResults = () => {
@@ -485,68 +415,6 @@
         ).length;
       };
 
-      const hashString = (value) => {
-        let hash = 0;
-        for (let i = 0; i < value.length; i += 1) {
-          hash = (hash << 5) - hash + value.charCodeAt(i);
-          hash |= 0;
-        }
-        return Math.abs(hash);
-      };
-
-      const buildResults = (username) =>
-        siteCatalog.map((site, index) => ({
-          site: site.site,
-          handle: site.template.replace("{username}", username),
-          status: "checking",
-          detail: "Scanning source…",
-          delay: 300 + index * 120,
-          siteMeta: site,
-        }));
-
-      const resolveResult = (username, item) => {
-        const seed = hashString(`${username}-${item.site}`);
-        const found = seed % 3 !== 0;
-        return {
-          ...item,
-          status: found ? "found" : "not-found",
-          detail: found ? item.siteMeta.foundDetail : item.siteMeta.missingDetail,
-        };
-      };
-
-      const startTimer = () => {
-        clearInterval(timerId);
-        elapsedSeconds = 0;
-        updateRuntime();
-        timerId = setInterval(() => {
-          elapsedSeconds += 1;
-          updateRuntime();
-        }, 1000);
-      };
-
-      const stopTimer = () => {
-        clearInterval(timerId);
-      };
-
-      const runSearch = () => {
-        const username = usernameInput.value.trim() || "skylab";
-        startTimer();
-        results = buildResults(username);
-        renderResults();
-
-        let completed = 0;
-        results.forEach((item, index) => {
-          setTimeout(() => {
-            results[index] = resolveResult(username, item);
-            completed += 1;
-            renderResults();
-            if (completed === results.length) {
-              stopTimer();
-            }
-          }, item.delay);
-        });
-      };
-
       sortSelect.addEventListener("change", renderResults);
       filterButtons.forEach((button) => {
         button.addEventListener("click", () => {
@@ -556,14 +424,7 @@
         });
       });
 
-      searchButton.addEventListener("click", runSearch);
-      usernameInput.addEventListener("keydown", (event) => {
-        if (event.key === "Enter") {
-          runSearch();
-        }
-      });
-
-      runSearch();
+      renderResults();
     </script>
   </body>
 </html>
