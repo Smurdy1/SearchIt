@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>SearchIt — Reverse Username Search</title>
+    <title>SearchIt — AI Username Finder</title>
     <style>
       :root {
         color-scheme: dark;
@@ -112,6 +112,21 @@
         box-shadow: 0 12px 20px rgba(110, 231, 255, 0.25);
       }
 
+      .toggle-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px 18px;
+        align-items: center;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+
+      .toggle-row label {
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+      }
+
       .metrics {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -132,6 +147,26 @@
 
       .metric-card strong {
         font-size: 1.4rem;
+      }
+
+      .ai-panel {
+        background: linear-gradient(160deg, rgba(110, 231, 255, 0.08), rgba(139, 92, 246, 0.08));
+        border-radius: 20px;
+        padding: 18px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .ai-panel h3 {
+        margin: 0;
+        font-size: 1.1rem;
+      }
+
+      .ai-insights {
+        margin: 0;
+        padding-left: 18px;
+        color: var(--muted);
+        line-height: 1.5;
       }
 
       .results-panel {
@@ -202,6 +237,7 @@
         border-radius: 999px;
         font-size: 0.8rem;
         font-weight: 600;
+        text-transform: capitalize;
       }
 
       .status.found {
@@ -258,12 +294,12 @@
   </head>
   <body>
     <header>
-      <span class="badge">SearchIt · Reverse Username Search</span>
-      <h1>Find where a username exists across the internet.</h1>
+      <span class="badge">SearchIt · AI Username Search</span>
+      <h1>AI-assisted search for a username across social platforms.</h1>
       <p class="lead">
-        Search hundreds of communities, marketplaces, social platforms, and dev
-        networks in seconds. Results are automatically sorted by found vs. not
-        found, so you can triage faster.
+        Enter a handle and let the assistant scan popular social media sites,
+        developer hubs, and creator communities. The AI layer summarizes your
+        reach, highlights likely matches, and suggests next steps.
       </p>
     </header>
 
@@ -277,15 +313,28 @@
             aria-label="Username"
             value="skylab"
           />
-          <button id="search-button" type="button">Start Search</button>
-          <button type="button">Start Search</button>
+          <button id="search-button" type="button">Start AI Search</button>
+        </div>
+
+        <div class="toggle-row">
+          <label>
+            <input id="deep-scan" type="checkbox" checked />
+            Deep scan (slower, more detail)
+          </label>
+          <label>
+            <input id="include-dev" type="checkbox" checked />
+            Include developer communities
+          </label>
+          <label>
+            <input id="include-creator" type="checkbox" checked />
+            Include creator platforms
+          </label>
         </div>
 
         <div class="metrics">
           <div class="metric-card">
             <span>Websites scanned</span>
             <strong id="scanned-count">0</strong>
-            <strong>312+</strong>
           </div>
           <div class="metric-card">
             <span>Found matches</span>
@@ -297,8 +346,15 @@
           </div>
           <div class="metric-card">
             <span>Search runtime</span>
-            <strong>00:42</strong>
+            <strong id="runtime">00:00</strong>
           </div>
+        </div>
+
+        <div class="ai-panel">
+          <h3>AI Summary</h3>
+          <ul class="ai-insights" id="ai-insights">
+            <li>Run a search to generate AI insights.</li>
+          </ul>
         </div>
 
         <div class="filter-toggle" role="group" aria-label="Result filters">
@@ -321,8 +377,8 @@
         </div>
         <div class="results-grid" id="results-grid"></div>
         <p class="footer-note">
-          Monitoring 300+ destinations. Add more sources or export results to
-          share with your team.
+          AI detection uses lightweight heuristics and public signals. Verify any
+          results directly on each platform before taking action.
         </p>
       </section>
     </main>
@@ -330,124 +386,109 @@
     <script>
       const siteCatalog = [
         {
-          site: "GitHub",
-          template: "github.com/{username}",
-          foundDetail: "Public profile with repositories.",
-          missingDetail: "No profile located.",
-        },
-        {
-          site: "Reddit",
-          template: "reddit.com/u/{username}",
-          foundDetail: "Active threads and comments.",
-          missingDetail: "Username unclaimed.",
-        },
-        {
-          site: "Steam",
-          template: "steamcommunity.com/id/{username}",
-          foundDetail: "Profile online with badges.",
-          missingDetail: "No account found.",
-        },
-        {
-          site: "Behance",
-          template: "behance.net/{username}",
-          foundDetail: "Portfolio with recent projects.",
-          missingDetail: "No portfolios match.",
-        },
-        {
-          site: "Hacker News",
-          template: "news.ycombinator.com/user?id={username}",
-          foundDetail: "Karma history detected.",
-          missingDetail: "No user activity.",
-        },
-        {
-          site: "Twitch",
-          template: "twitch.tv/{username}",
-          foundDetail: "Channel streaming this week.",
-          missingDetail: "Channel not created.",
-        },
-        {
           site: "Instagram",
           template: "instagram.com/{username}",
-          foundDetail: "Story highlights available.",
-          missingDetail: "No public profile.",
+          foundDetail: "Profile, stories, or tagged posts detected.",
+          missingDetail: "No public profile detected.",
+          groups: ["creator"],
         },
         {
           site: "TikTok",
           template: "tiktok.com/@{username}",
-          foundDetail: "Recent clips detected.",
-          missingDetail: "No matches returned.",
+          foundDetail: "Short-form video page found.",
+          missingDetail: "No profile detected.",
+          groups: ["creator"],
         },
         {
           site: "YouTube",
           template: "youtube.com/@{username}",
-          foundDetail: "Channel with uploads.",
-          missingDetail: "No channel found.",
+          foundDetail: "Channel page accessible.",
+          missingDetail: "No channel page found.",
+          groups: ["creator"],
+        },
+        {
+          site: "Twitch",
+          template: "twitch.tv/{username}",
+          foundDetail: "Channel page is live.",
+          missingDetail: "No channel page found.",
+          groups: ["creator"],
         },
         {
           site: "Pinterest",
           template: "pinterest.com/{username}",
-          foundDetail: "Boards saved recently.",
-          missingDetail: "Profile unavailable.",
+          foundDetail: "Boards and pins were indexed.",
+          missingDetail: "No profile data found.",
+          groups: ["creator"],
         },
         {
-          site: "Medium",
-          template: "medium.com/@{username}",
-          foundDetail: "Recent articles detected.",
-          missingDetail: "No author profile.",
+          site: "GitHub",
+          template: "github.com/{username}",
+          foundDetail: "Profile found with repositories.",
+          missingDetail: "No profile located.",
+          groups: ["dev"],
         },
         {
           site: "Stack Overflow",
           template: "stackoverflow.com/users/{username}",
-          foundDetail: "Reputation and answers listed.",
+          foundDetail: "Reputation activity visible.",
           missingDetail: "No user record.",
+          groups: ["dev"],
+        },
+        {
+          site: "Hacker News",
+          template: "news.ycombinator.com/user?id={username}",
+          foundDetail: "User history detected.",
+          missingDetail: "No user activity.",
+          groups: ["dev"],
         },
         {
           site: "Dribbble",
           template: "dribbble.com/{username}",
-          foundDetail: "Shots and likes available.",
+          foundDetail: "Design portfolio detected.",
           missingDetail: "No designer found.",
-        },
-        {
-          site: "Product Hunt",
-          template: "producthunt.com/@{username}",
-          foundDetail: "Upvotes and collections visible.",
-          missingDetail: "Profile not found.",
-      const results = [
-        {
-          site: "GitHub",
-          handle: "github.com/skylab",
-          status: "found",
-          detail: "Active profile with 42 repositories.",
-        },
-        {
-          site: "Reddit",
-          handle: "reddit.com/u/skylab",
-          status: "not-found",
-          detail: "No public profile detected.",
-        },
-        {
-          site: "Steam",
-          handle: "steamcommunity.com/id/skylab",
-          status: "found",
-          detail: "Profile online, last seen 2h ago.",
+          groups: ["creator"],
         },
         {
           site: "Behance",
-          handle: "behance.net/skylab",
-          status: "not-found",
-          detail: "Username not registered.",
+          template: "behance.net/{username}",
+          foundDetail: "Portfolio page detected.",
+          missingDetail: "No portfolio matches.",
+          groups: ["creator"],
         },
         {
-          site: "Hacker News",
-          handle: "news.ycombinator.com/user?id=skylab",
-          status: "found",
-          detail: "48 submissions, 215 karma.",
+          site: "Reddit",
+          template: "reddit.com/u/{username}",
+          foundDetail: "Reddit user profile found.",
+          missingDetail: "Username unclaimed.",
+          groups: ["social"],
         },
         {
-          site: "Twitch",
-          handle: "twitch.tv/skylab",
-          status: "checking",
-          detail: "Queued for verification.",
+          site: "X (Twitter)",
+          template: "x.com/{username}",
+          foundDetail: "Profile timeline visible.",
+          missingDetail: "No profile found.",
+          groups: ["social"],
+        },
+        {
+          site: "Facebook",
+          template: "facebook.com/{username}",
+          foundDetail: "Profile or page detected.",
+          missingDetail: "Profile unavailable.",
+          groups: ["social"],
+        },
+        {
+          site: "LinkedIn",
+          template: "linkedin.com/in/{username}",
+          foundDetail: "Professional profile found.",
+          missingDetail: "No public profile found.",
+          groups: ["social"],
+        },
+        {
+          site: "Snapchat",
+          template: "snapchat.com/add/{username}",
+          foundDetail: "Public profile visible.",
+          missingDetail: "No public profile found.",
+          groups: ["social"],
         },
       ];
 
@@ -459,9 +500,11 @@
       const scannedCount = document.getElementById("scanned-count");
       const usernameInput = document.getElementById("username-input");
       const searchButton = document.getElementById("search-button");
-      const runtimeDisplay = document.querySelector(
-        ".metric-card:nth-child(4) strong"
-      );
+      const runtimeDisplay = document.getElementById("runtime");
+      const insightsList = document.getElementById("ai-insights");
+      const deepScanToggle = document.getElementById("deep-scan");
+      const includeDevToggle = document.getElementById("include-dev");
+      const includeCreatorToggle = document.getElementById("include-creator");
 
       let results = [];
       let timerId;
@@ -511,21 +554,36 @@
           )
           .join("");
 
-        foundCount.textContent = results.filter((item) => item.status === "found")
-          .length;
-        notFoundCount.textContent = results.filter(
+        const foundTotal = results.filter((item) => item.status === "found").length;
+        const notFoundTotal = results.filter(
           (item) => item.status === "not-found"
         ).length;
+        foundCount.textContent = foundTotal;
+        notFoundCount.textContent = notFoundTotal;
       };
 
-      const buildResults = (username) =>
-        siteCatalog.map((site) => ({
+      const buildResults = (username) => {
+        const allowDev = includeDevToggle.checked;
+        const allowCreator = includeCreatorToggle.checked;
+
+        const filteredCatalog = siteCatalog.filter((site) => {
+          if (site.groups.includes("dev") && !allowDev) {
+            return false;
+          }
+          if (site.groups.includes("creator") && !allowCreator) {
+            return false;
+          }
+          return true;
+        });
+
+        return filteredCatalog.map((site) => ({
           site: site.site,
           handle: site.template.replace("{username}", username),
           status: "checking",
           detail: "Scanning source…",
           siteMeta: site,
         }));
+      };
 
       const isNotFoundResponse = (text) => {
         const normalized = text.toLowerCase();
@@ -533,7 +591,8 @@
           normalized.includes("status: 404") ||
           normalized.includes("404 not found") ||
           normalized.includes("page not found") ||
-          normalized.includes("user not found")
+          normalized.includes("user not found") ||
+          normalized.includes("profile not found")
         );
       };
 
@@ -541,7 +600,7 @@
         const targetUrl = `https://${item.handle}`;
         const proxyUrl = `https://r.jina.ai/http://${targetUrl}`;
         try {
-          const response = await fetch(proxyUrl);
+          const response = await fetch(proxyUrl, { cache: "no-store" });
           const body = await response.text();
           const found = response.ok && !isNotFoundResponse(body);
           return {
@@ -572,21 +631,66 @@
         clearInterval(timerId);
       };
 
+      const buildInsights = () => {
+        const foundItems = results.filter((item) => item.status === "found");
+        const notFoundItems = results.filter((item) => item.status === "not-found");
+        const deepScan = deepScanToggle.checked;
+
+        const insights = [];
+        if (foundItems.length === 0) {
+          insights.push(
+            "No strong matches yet. Consider variations (add a suffix or underscore)."
+          );
+        } else {
+          insights.push(
+            `Found ${foundItems.length} likely matches. Prioritize high-visibility sites first.`
+          );
+        }
+
+        if (notFoundItems.length > 0) {
+          insights.push(
+            `Missing on ${notFoundItems.length} platforms. This could indicate brand availability.`
+          );
+        }
+
+        if (deepScan) {
+          insights.push(
+            "Deep scan is enabled: expect more accurate results but longer runtimes."
+          );
+        } else {
+          insights.push("Quick scan enabled: consider deep scan for higher confidence.");
+        }
+
+        if (includeDevToggle.checked && includeCreatorToggle.checked) {
+          insights.push(
+            "Balanced scan across developer and creator communities for holistic coverage."
+          );
+        }
+
+        insightsList.innerHTML = insights
+          .map((text) => `<li>${text}</li>`)
+          .join("");
+      };
+
       const runSearch = async () => {
         const username = usernameInput.value.trim() || "skylab";
         startTimer();
         results = buildResults(username);
         scannedCount.textContent = results.length;
         renderResults();
+        buildInsights();
 
         let completed = 0;
+        const checks = deepScanToggle.checked ? results : results.slice(0, 8);
+
         await Promise.all(
-          results.map(async (item, index) => {
+          checks.map(async (item, index) => {
             const resolved = await checkSite(item);
             results[index] = resolved;
             completed += 1;
             renderResults();
-            if (completed === results.length) {
+            buildInsights();
+            if (completed === checks.length) {
               stopTimer();
             }
           })
@@ -602,6 +706,15 @@
         });
       });
 
+      [deepScanToggle, includeDevToggle, includeCreatorToggle].forEach((toggle) => {
+        toggle.addEventListener("change", () => {
+          results = buildResults(usernameInput.value.trim() || "skylab");
+          scannedCount.textContent = results.length;
+          renderResults();
+          buildInsights();
+        });
+      });
+
       searchButton.addEventListener("click", runSearch);
       usernameInput.addEventListener("keydown", (event) => {
         if (event.key === "Enter") {
@@ -610,7 +723,6 @@
       });
 
       runSearch();
-      renderResults();
     </script>
   </body>
 </html>
