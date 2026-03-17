@@ -1,513 +1,439 @@
-diff --git a/exif/index.html b/exif/index.html
-new file mode 100644
-index 0000000000000000000000000000000000000000..c6c8698d3c238a0f016c449aac7a5b0446eb072e
---- /dev/null
-+++ b/exif/index.html
-@@ -0,0 +1,507 @@
-+<!DOCTYPE html>
-+<html lang="en">
-+  <head>
-+    <meta charset="UTF-8" />
-+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-+    <title>SearchIt EXIF Lab</title>
-+    <style>
-+      :root {
-+        color-scheme: dark;
-+        --bg: #070b14;
-+        --panel: rgba(20, 28, 49, 0.72);
-+        --panel-border: rgba(126, 189, 255, 0.24);
-+        --text: #eef3ff;
-+        --muted: #9db0d7;
-+        --accent: #60efff;
-+        --accent-2: #8b5cf6;
-+        --ok: #38f2a7;
-+      }
-+
-+      * {
-+        box-sizing: border-box;
-+      }
-+
-+      body {
-+        margin: 0;
-+        min-height: 100vh;
-+        font-family: "Inter", "Segoe UI", system-ui, sans-serif;
-+        color: var(--text);
-+        background: radial-gradient(circle at 20% 0%, #263f77 0, transparent 35%),
-+          radial-gradient(circle at 80% 20%, #4b248e 0, transparent 32%), var(--bg);
-+      }
-+
-+      body::before {
-+        content: "";
-+        position: fixed;
-+        inset: 0;
-+        pointer-events: none;
-+        background-image: linear-gradient(
-+            rgba(255, 255, 255, 0.02) 1px,
-+            transparent 1px
-+          ),
-+          linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
-+        background-size: 26px 26px;
-+      }
-+
-+      main {
-+        width: min(1100px, 94vw);
-+        margin: 36px auto 60px;
-+        display: grid;
-+        gap: 18px;
-+      }
-+
-+      .panel {
-+        border: 1px solid var(--panel-border);
-+        background: var(--panel);
-+        backdrop-filter: blur(14px);
-+        border-radius: 24px;
-+        box-shadow: 0 30px 60px rgba(3, 6, 18, 0.55);
-+      }
-+
-+      .hero {
-+        padding: 28px;
-+      }
-+
-+      .tag {
-+        display: inline-flex;
-+        gap: 8px;
-+        align-items: center;
-+        border-radius: 999px;
-+        padding: 8px 14px;
-+        font-size: 0.85rem;
-+        color: #d8edff;
-+        background: linear-gradient(135deg, rgba(96, 239, 255, 0.2), rgba(139, 92, 246, 0.2));
-+      }
-+
-+      h1 {
-+        margin: 16px 0 12px;
-+        font-size: clamp(2rem, 4vw, 3.2rem);
-+      }
-+
-+      .hero p {
-+        margin: 0;
-+        max-width: 70ch;
-+        color: var(--muted);
-+        line-height: 1.65;
-+      }
-+
-+      .workspace {
-+        display: grid;
-+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
-+        gap: 18px;
-+      }
-+
-+      .uploader,
-+      .output {
-+        padding: 22px;
-+      }
-+
-+      .dropzone {
-+        border: 1.5px dashed rgba(96, 239, 255, 0.45);
-+        border-radius: 18px;
-+        padding: 20px;
-+        text-align: center;
-+        transition: 0.2s ease;
-+        cursor: pointer;
-+        background: rgba(3, 11, 24, 0.55);
-+      }
-+
-+      .dropzone:hover,
-+      .dropzone.dragging {
-+        border-color: #9ea7ff;
-+        transform: translateY(-2px);
-+        box-shadow: 0 14px 28px rgba(96, 239, 255, 0.18);
-+      }
-+
-+      .dropzone p {
-+        color: var(--muted);
-+        margin: 10px 0 0;
-+      }
-+
-+      #preview {
-+        width: 100%;
-+        margin-top: 16px;
-+        border-radius: 16px;
-+        max-height: 340px;
-+        object-fit: cover;
-+        border: 1px solid rgba(157, 176, 215, 0.2);
-+        display: none;
-+      }
-+
-+      .loading {
-+        margin-top: 14px;
-+        display: none;
-+        gap: 10px;
-+        align-items: center;
-+        color: #dbe9ff;
-+      }
-+
-+      .loading.active {
-+        display: flex;
-+      }
-+
-+      .dots {
-+        display: inline-flex;
-+        gap: 4px;
-+      }
-+
-+      .dots span {
-+        width: 8px;
-+        height: 8px;
-+        border-radius: 50%;
-+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
-+        animation: pulse 0.8s infinite ease-in-out;
-+      }
-+
-+      .dots span:nth-child(2) {
-+        animation-delay: 0.16s;
-+      }
-+
-+      .dots span:nth-child(3) {
-+        animation-delay: 0.32s;
-+      }
-+
-+      @keyframes pulse {
-+        0%,
-+        100% {
-+          transform: scale(0.75);
-+          opacity: 0.4;
-+        }
-+        50% {
-+          transform: scale(1.2);
-+          opacity: 1;
-+        }
-+      }
-+
-+      .output h2 {
-+        margin: 0 0 14px;
-+      }
-+
-+      .meta-grid {
-+        display: grid;
-+        gap: 10px;
-+        max-height: 540px;
-+        overflow: auto;
-+      }
-+
-+      .meta-item {
-+        padding: 12px 14px;
-+        border-radius: 14px;
-+        background: rgba(4, 11, 27, 0.72);
-+        border: 1px solid rgba(157, 176, 215, 0.2);
-+      }
-+
-+      .meta-item strong {
-+        color: #d8f4ff;
-+      }
-+
-+      .meta-item code {
-+        color: var(--ok);
-+        word-break: break-word;
-+      }
-+
-+      .empty {
-+        color: var(--muted);
-+      }
-+
-+      .version-badge {
-+        position: fixed;
-+        right: 10px;
-+        bottom: 8px;
-+        font-size: 0.65rem;
-+        letter-spacing: 0.04em;
-+        color: rgba(219, 233, 255, 0.65);
-+        background: rgba(4, 11, 27, 0.65);
-+        border: 1px solid rgba(157, 176, 215, 0.18);
-+        padding: 3px 7px;
-+        border-radius: 999px;
-+        z-index: 5;
-+      }
-+
-+      @media (max-width: 900px) {
-+        .workspace {
-+          grid-template-columns: 1fr;
-+        }
-+      }
-+    </style>
-+  </head>
-+  <body>
-+    <span class="version-badge" id="version-badge"></span>
-+    <main>
-+      <section class="panel hero">
-+        <span class="tag">SearchIt Space · EXIF Lab</span>
-+        <h1>Drop any photo and reveal its metadata signature.</h1>
-+        <p>
-+          Upload an image to inspect EXIF tags like camera model, lens, date taken,
-+          geolocation, and orientation. Includes a cinematic “decoding” moment for extra drama.
-+        </p>
-+      </section>
-+
-+      <section class="workspace">
-+        <div class="panel uploader">
-+          <input id="file-input" type="file" accept="image/*" hidden />
-+          <button class="dropzone" id="dropzone" type="button">
-+            <strong>Drop image here or click to upload</strong>
-+            <p>Supports JPEG/HEIC/WebP where metadata is available.</p>
-+          </button>
-+          <img id="preview" alt="Image preview" />
-+          <div class="loading" id="loading">
-+            <span id="loading-text">Decrypting photons...</span>
-+            <span class="dots"><span></span><span></span><span></span></span>
-+          </div>
-+        </div>
-+
-+        <div class="panel output">
-+          <h2>Extracted EXIF Data</h2>
-+          <div class="meta-grid" id="meta-grid">
-+            <p class="empty">No image loaded yet.</p>
-+          </div>
-+        </div>
-+      </section>
-+    </main>
-+
-+    <script>
-+      const fileInput = document.getElementById("file-input");
-+      const dropzone = document.getElementById("dropzone");
-+      const preview = document.getElementById("preview");
-+      const metaGrid = document.getElementById("meta-grid");
-+      const loading = document.getElementById("loading");
-+      const loadingText = document.getElementById("loading-text");
-+
-+      const APP_VERSION = "v0.0.5";
-+      document.getElementById("version-badge").textContent = `build ${APP_VERSION}`;
-+
-+      const loadingMessages = [
-+        "Calibrating metadata scanner...",
-+        "Dusting off hidden camera tags...",
-+        "Decrypting photons...",
-+        "Asking the image to spill secrets...",
-+      ];
-+
-+      const priorityKeys = [
-+        "Make",
-+        "Model",
-+        "LensModel",
-+        "DateTimeOriginal",
-+        "ISO",
-+        "FNumber",
-+        "ExposureTime",
-+        "FocalLength",
-+        "GPSLatitude",
-+        "GPSLongitude",
-+        "Orientation",
-+        "Software",
-+      ];
-+
-+      const fillerKeys = [
-+        "CreateDate",
-+        "ModifyDate",
-+        "ImageWidth",
-+        "ImageHeight",
-+        "PixelXDimension",
-+        "PixelYDimension",
-+        "ColorSpace",
-+        "WhiteBalance",
-+        "Flash",
-+        "MeteringMode",
-+        "ExposureProgram",
-+        "ExifVersion",
-+        "SceneCaptureType",
-+      ];
-+
-+      const formatValue = (value) => {
-+        if (Array.isArray(value)) return value.join(", ");
-+        if (value instanceof Date) return value.toLocaleString();
-+        if (typeof value === "object" && value !== null) return JSON.stringify(value);
-+        return String(value);
-+      };
-+
-+      const buildFallbackMeta = async (file) => {
-+        const dimensions = await new Promise((resolve) => {
-+          const img = new Image();
-+          img.onload = () => {
-+            resolve({ width: img.naturalWidth, height: img.naturalHeight });
-+            URL.revokeObjectURL(img.src);
-+          };
-+          img.onerror = () => {
-+            resolve({ width: "Unknown", height: "Unknown" });
-+          };
-+          img.src = URL.createObjectURL(file);
-+        });
-+
-+        return {
-+          Filename: file.name,
-+          MimeType: file.type || "Unknown",
-+          FileSize: `${(file.size / 1024 / 1024).toFixed(2)} MB (${file.size.toLocaleString()} bytes)`,
-+          LastModified: new Date(file.lastModified),
-+          ImageWidth: dimensions.width,
-+          ImageHeight: dimensions.height,
-+        };
-+      };
-+
-+      const renderMeta = (meta) => {
-+        metaGrid.innerHTML = "";
-+
-+        const primaryEntries = priorityKeys
-+          .filter((key) => meta && meta[key] !== undefined)
-+          .map((key) => [key, meta[key]]);
-+
-+        const extraEntries = fillerKeys
-+          .filter((key) => meta && meta[key] !== undefined && !priorityKeys.includes(key))
-+          .map((key) => [key, meta[key]]);
-+
-+        const allEntries = [...primaryEntries, ...extraEntries];
-+
-+        Object.entries(meta || {}).forEach(([key, value]) => {
-+          if (value === undefined || value === null) return;
-+          if (allEntries.some(([existingKey]) => existingKey === key)) return;
-+          allEntries.push([key, value]);
-+        });
-+
-+        if (!allEntries.length) {
-+          metaGrid.innerHTML =
-+            '<p class="empty">No EXIF metadata found. Try another photo straight from a camera/phone.</p>';
-+          return;
-+        }
-+
-+        allEntries.forEach(([key, value]) => {
-+          const item = document.createElement("article");
-+          item.className = "meta-item";
-+          item.innerHTML = `<strong>${key}</strong><br /><code>${formatValue(value)}</code>`;
-+          metaGrid.appendChild(item);
-+        });
-+      };
-+
-+      const showLoading = () => {
-+        loadingText.textContent = loadingMessages[Math.floor(Math.random() * loadingMessages.length)];
-+        loading.classList.add("active");
-+      };
-+
-+      const hideLoading = () => {
-+        loading.classList.remove("active");
-+      };
-+
-+      const exifrSources = [
-+        "https://cdn.jsdelivr.net/npm/exifr@7.1.3/dist/full.umd.js",
-+        "https://unpkg.com/exifr@7.1.3/dist/full.umd.js",
-+      ];
-+
-+      const ensureExifrLoaded = async () => {
-+        if (window.exifr && typeof window.exifr.parse === "function") {
-+          return true;
-+        }
-+
-+        for (const src of exifrSources) {
-+          try {
-+            await new Promise((resolve, reject) => {
-+              const script = document.createElement("script");
-+              script.src = src;
-+              script.async = true;
-+              script.onload = resolve;
-+              script.onerror = reject;
-+              document.head.appendChild(script);
-+            });
-+            if (window.exifr && typeof window.exifr.parse === "function") {
-+              return true;
-+            }
-+          } catch (error) {
-+            // Try next CDN source.
-+          }
-+        }
-+
-+        return false;
-+      };
-+
-+      const parseExifSafely = async (file) => {
-+        const ready = await ensureExifrLoaded();
-+        if (!ready) {
-+          return {};
-+        }
-+
-+        const parserConfigs = [
-+          {
-+            tiff: true,
-+            ifd0: true,
-+            exif: true,
-+            gps: true,
-+            interop: true,
-+            ihdr: true,
-+            xmp: true,
-+          },
-+          {
-+            tiff: true,
-+            ifd0: true,
-+            exif: true,
-+            gps: true,
-+            xmp: true,
-+          },
-+          true,
-+        ];
-+
-+        for (const config of parserConfigs) {
-+          try {
-+            return (await exifr.parse(file, config)) || {};
-+          } catch (error) {
-+            if (!String(error?.message || "").toLowerCase().includes("jfif")) {
-+              // Keep retrying silently for all parser failures.
-+            }
-+          }
-+        }
-+
-+        return {};
-+      };
-+
-+      const handleFile = async (file) => {
-+        if (!file) return;
-+
-+        preview.src = URL.createObjectURL(file);
-+        preview.style.display = "block";
-+
-+        showLoading();
-+        metaGrid.innerHTML = '<p class="empty">Running spectral analysis...</p>';
-+
-+        try {
-+          await new Promise((resolve) => setTimeout(resolve, 1200));
-+
-+          const [fullParse, fallbackMeta] = await Promise.all([
-+            parseExifSafely(file),
-+            buildFallbackMeta(file),
-+          ]);
-+
-+          renderMeta({
-+            ...fallbackMeta,
-+            ...(fullParse || {}),
-+          });
-+        } finally {
-+          hideLoading();
-+        }
-+      };
-+
-+      dropzone.addEventListener("click", () => fileInput.click());
-+
-+      fileInput.addEventListener("change", (event) => {
-+        const [file] = event.target.files;
-+        handleFile(file);
-+      });
-+
-+      ["dragenter", "dragover"].forEach((eventName) => {
-+        dropzone.addEventListener(eventName, (event) => {
-+          event.preventDefault();
-+          dropzone.classList.add("dragging");
-+        });
-+      });
-+
-+      ["dragleave", "drop"].forEach((eventName) => {
-+        dropzone.addEventListener(eventName, (event) => {
-+          event.preventDefault();
-+          dropzone.classList.remove("dragging");
-+        });
-+      });
-+
-+      dropzone.addEventListener("drop", (event) => {
-+        const [file] = event.dataTransfer.files;
-+        handleFile(file);
-+      });
-+    </script>
-+  </body>
+<!DOCTYPE html>
+<html lang="en">
+ <head>
+   <meta charset="UTF-8" />
+   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+   <title>SearchIt EXIF Lab</title>
+   <style>
+     :root {
+       color-scheme: dark;
+       --bg: #070b14;
+       --panel: rgba(20, 28, 49, 0.72);
+       --panel-border: rgba(126, 189, 255, 0.24);
+       --text: #eef3ff;
+       --muted: #9db0d7;
+       --accent: #60efff;
+       --accent-2: #8b5cf6;
+       --ok: #38f2a7;
+     }
+     * {
+       box-sizing: border-box;
+     }
+     body {
+       margin: 0;
+       min-height: 100vh;
+       font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+       color: var(--text);
+       background: radial-gradient(circle at 20% 0%, #263f77 0, transparent 35%),
+         radial-gradient(circle at 80% 20%, #4b248e 0, transparent 32%), var(--bg);
+     }
+     body::before {
+       content: "";
+       position: fixed;
+       inset: 0;
+       pointer-events: none;
+       background-image: linear-gradient(
+           rgba(255, 255, 255, 0.02) 1px,
+           transparent 1px
+         ),
+         linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+       background-size: 26px 26px;
+     }
+     main {
+       width: min(1100px, 94vw);
+       margin: 36px auto 60px;
+       display: grid;
+       gap: 18px;
+     }
+     .panel {
+       border: 1px solid var(--panel-border);
+       background: var(--panel);
+       backdrop-filter: blur(14px);
+       border-radius: 24px;
+       box-shadow: 0 30px 60px rgba(3, 6, 18, 0.55);
+     }
+     .hero {
+       padding: 28px;
+     }
+     .tag {
+       display: inline-flex;
+       gap: 8px;
+       align-items: center;
+       border-radius: 999px;
+       padding: 8px 14px;
+       font-size: 0.85rem;
+       color: #d8edff;
+       background: linear-gradient(135deg, rgba(96, 239, 255, 0.2), rgba(139, 92, 246, 0.2));
+     }
+     h1 {
+       margin: 16px 0 12px;
+       font-size: clamp(2rem, 4vw, 3.2rem);
+     }
+     .hero p {
+       margin: 0;
+       max-width: 70ch;
+       color: var(--muted);
+       line-height: 1.65;
+     }
+     .workspace {
+       display: grid;
+       grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+       gap: 18px;
+     }
+     .uploader,
+     .output {
+       padding: 22px;
+     }
+     .dropzone {
+       border: 1.5px dashed rgba(96, 239, 255, 0.45);
+       border-radius: 18px;
+       padding: 20px;
+       text-align: center;
+       transition: 0.2s ease;
+       cursor: pointer;
+       background: rgba(3, 11, 24, 0.55);
+     }
+     .dropzone:hover,
+     .dropzone.dragging {
+       border-color: #9ea7ff;
+       transform: translateY(-2px);
+       box-shadow: 0 14px 28px rgba(96, 239, 255, 0.18);
+     }
+     .dropzone p {
+       color: var(--muted);
+       margin: 10px 0 0;
+     }
+     #preview {
+       width: 100%;
+       margin-top: 16px;
+       border-radius: 16px;
+       max-height: 340px;
+       object-fit: cover;
+       border: 1px solid rgba(157, 176, 215, 0.2);
+       display: none;
+     }
+     .loading {
+       margin-top: 14px;
+       display: none;
+       gap: 10px;
+       align-items: center;
+       color: #dbe9ff;
+     }
+     .loading.active {
+       display: flex;
+     }
+     .dots {
+       display: inline-flex;
+       gap: 4px;
+     }
+     .dots span {
+       width: 8px;
+       height: 8px;
+       border-radius: 50%;
+       background: linear-gradient(135deg, var(--accent), var(--accent-2));
+       animation: pulse 0.8s infinite ease-in-out;
+     }
+     .dots span:nth-child(2) {
+       animation-delay: 0.16s;
+     }
+     .dots span:nth-child(3) {
+       animation-delay: 0.32s;
+     }
+     @keyframes pulse {
+       0%,
+       100% {
+         transform: scale(0.75);
+         opacity: 0.4;
+       }
+       50% {
+         transform: scale(1.2);
+         opacity: 1;
+       }
+     }
+     .output h2 {
+       margin: 0 0 14px;
+     }
+     .meta-grid {
+       display: grid;
+       gap: 10px;
+       max-height: 540px;
+       overflow: auto;
+     }
+     .meta-item {
+       padding: 12px 14px;
+       border-radius: 14px;
+       background: rgba(4, 11, 27, 0.72);
+       border: 1px solid rgba(157, 176, 215, 0.2);
+     }
+     .meta-item strong {
+       color: #d8f4ff;
+     }
+     .meta-item code {
+       color: var(--ok);
+       word-break: break-word;
+     }
+     .empty {
+       color: var(--muted);
+     }
+     .version-badge {
+       position: fixed;
+       right: 10px;
+       bottom: 8px;
+       font-size: 0.65rem;
+       letter-spacing: 0.04em;
+       color: rgba(219, 233, 255, 0.65);
+       background: rgba(4, 11, 27, 0.65);
+       border: 1px solid rgba(157, 176, 215, 0.18);
+       padding: 3px 7px;
+       border-radius: 999px;
+       z-index: 5;
+     }
+     @media (max-width: 900px) {
+       .workspace {
+         grid-template-columns: 1fr;
+       }
+     }
+   </style>
+ </head>
+ <body>
+   <span class="version-badge" id="version-badge"></span>
+   <main>
+     <section class="panel hero">
+       <span class="tag">SearchIt Space · EXIF Lab</span>
+       <h1>Drop any photo and reveal its metadata signature.</h1>
+       <p>
+         Upload an image to inspect EXIF tags like camera model, lens, date taken,
+         geolocation, and orientation. Includes a cinematic “decoding” moment for extra drama.
+       </p>
+     </section>
+     <section class="workspace">
+       <div class="panel uploader">
+         <input id="file-input" type="file" accept="image/*" hidden />
+         <button class="dropzone" id="dropzone" type="button">
+           <strong>Drop image here or click to upload</strong>
+           <p>Supports JPEG/HEIC/WebP where metadata is available.</p>
+         </button>
+         <img id="preview" alt="Image preview" />
+         <div class="loading" id="loading">
+           <span id="loading-text">Decrypting photons...</span>
+           <span class="dots"><span></span><span></span><span></span></span>
+         </div>
+       </div>
+       <div class="panel output">
+         <h2>Extracted EXIF Data</h2>
+         <div class="meta-grid" id="meta-grid">
+           <p class="empty">No image loaded yet.</p>
+         </div>
+       </div>
+     </section>
+   </main>
+   <script>
+     const fileInput = document.getElementById("file-input");
+     const dropzone = document.getElementById("dropzone");
+     const preview = document.getElementById("preview");
+     const metaGrid = document.getElementById("meta-grid");
+     const loading = document.getElementById("loading");
+     const loadingText = document.getElementById("loading-text");
+     const APP_VERSION = "v0.0.5";
+     document.getElementById("version-badge").textContent = `build ${APP_VERSION}`;
+     const loadingMessages = [
+       "Calibrating metadata scanner...",
+       "Dusting off hidden camera tags...",
+       "Decrypting photons...",
+       "Asking the image to spill secrets...",
+     ];
+     const priorityKeys = [
+       "Make",
+       "Model",
+       "LensModel",
+       "DateTimeOriginal",
+       "ISO",
+       "FNumber",
+       "ExposureTime",
+       "FocalLength",
+       "GPSLatitude",
+       "GPSLongitude",
+       "Orientation",
+       "Software",
+     ];
+     const fillerKeys = [
+       "CreateDate",
+       "ModifyDate",
+       "ImageWidth",
+       "ImageHeight",
+       "PixelXDimension",
+       "PixelYDimension",
+       "ColorSpace",
+       "WhiteBalance",
+       "Flash",
+       "MeteringMode",
+       "ExposureProgram",
+       "ExifVersion",
+       "SceneCaptureType",
+     ];
+     const formatValue = (value) => {
+       if (Array.isArray(value)) return value.join(", ");
+       if (value instanceof Date) return value.toLocaleString();
+       if (typeof value === "object" && value !== null) return JSON.stringify(value);
+       return String(value);
+     };
+     const buildFallbackMeta = async (file) => {
+       const dimensions = await new Promise((resolve) => {
+         const img = new Image();
+         img.onload = () => {
+           resolve({ width: img.naturalWidth, height: img.naturalHeight });
+           URL.revokeObjectURL(img.src);
+         };
+         img.onerror = () => {
+           resolve({ width: "Unknown", height: "Unknown" });
+         };
+         img.src = URL.createObjectURL(file);
+       });
+       return {
+         Filename: file.name,
+         MimeType: file.type || "Unknown",
+         FileSize: `${(file.size / 1024 / 1024).toFixed(2)} MB (${file.size.toLocaleString()} bytes)`,
+         LastModified: new Date(file.lastModified),
+         ImageWidth: dimensions.width,
+         ImageHeight: dimensions.height,
+       };
+     };
+     const renderMeta = (meta) => {
+       metaGrid.innerHTML = "";
+       const primaryEntries = priorityKeys
+         .filter((key) => meta && meta[key] !== undefined)
+         .map((key) => [key, meta[key]]);
+       const extraEntries = fillerKeys
+         .filter((key) => meta && meta[key] !== undefined && !priorityKeys.includes(key))
+         .map((key) => [key, meta[key]]);
+       const allEntries = [...primaryEntries, ...extraEntries];
+       Object.entries(meta || {}).forEach(([key, value]) => {
+         if (value === undefined || value === null) return;
+         if (allEntries.some(([existingKey]) => existingKey === key)) return;
+         allEntries.push([key, value]);
+       });
+       if (!allEntries.length) {
+         metaGrid.innerHTML =
+           '<p class="empty">No EXIF metadata found. Try another photo straight from a camera/phone.</p>';
+         return;
+       }
+       allEntries.forEach(([key, value]) => {
+         const item = document.createElement("article");
+         item.className = "meta-item";
+         item.innerHTML = `<strong>${key}</strong><br /><code>${formatValue(value)}</code>`;
+         metaGrid.appendChild(item);
+       });
+     };
+     const showLoading = () => {
+       loadingText.textContent = loadingMessages[Math.floor(Math.random() * loadingMessages.length)];
+       loading.classList.add("active");
+     };
+     const hideLoading = () => {
+       loading.classList.remove("active");
+     };
+     const exifrSources = [
+       "https://cdn.jsdelivr.net/npm/exifr@7.1.3/dist/full.umd.js",
+       "https://unpkg.com/exifr@7.1.3/dist/full.umd.js",
+     ];
+     const ensureExifrLoaded = async () => {
+       if (window.exifr && typeof window.exifr.parse === "function") {
+         return true;
+       }
+       for (const src of exifrSources) {
+         try {
+           await new Promise((resolve, reject) => {
+             const script = document.createElement("script");
+             script.src = src;
+             script.async = true;
+             script.onload = resolve;
+             script.onerror = reject;
+             document.head.appendChild(script);
+           });
+           if (window.exifr && typeof window.exifr.parse === "function") {
+             return true;
+           }
+         } catch (error) {
+           // Try next CDN source.
+         }
+       }
+       return false;
+     };
+     const parseExifSafely = async (file) => {
+       const ready = await ensureExifrLoaded();
+       if (!ready) {
+         return {};
+       }
+       const parserConfigs = [
+         {
+           tiff: true,
+           ifd0: true,
+           exif: true,
+           gps: true,
+           interop: true,
+           ihdr: true,
+           xmp: true,
+         },
+         {
+           tiff: true,
+           ifd0: true,
+           exif: true,
+           gps: true,
+           xmp: true,
+         },
+         true,
+       ];
+       for (const config of parserConfigs) {
+         try {
+           return (await exifr.parse(file, config)) || {};
+         } catch (error) {
+           if (!String(error?.message || "").toLowerCase().includes("jfif")) {
+             // Keep retrying silently for all parser failures.
+           }
+         }
+       }
+       return {};
+     };
+     const handleFile = async (file) => {
+       if (!file) return;
+       preview.src = URL.createObjectURL(file);
+       preview.style.display = "block";
+       showLoading();
+       metaGrid.innerHTML = '<p class="empty">Running spectral analysis...</p>';
+       try {
+         await new Promise((resolve) => setTimeout(resolve, 1200));
+         const [fullParse, fallbackMeta] = await Promise.all([
+           parseExifSafely(file),
+           buildFallbackMeta(file),
+         ]);
+         renderMeta({
+           ...fallbackMeta,
+           ...(fullParse || {}),
+         });
+       } finally {
+         hideLoading();
+       }
+     };
+     dropzone.addEventListener("click", () => fileInput.click());
+     fileInput.addEventListener("change", (event) => {
+       const [file] = event.target.files;
+       handleFile(file);
+     });
+     ["dragenter", "dragover"].forEach((eventName) => {
+       dropzone.addEventListener(eventName, (event) => {
+         event.preventDefault();
+         dropzone.classList.add("dragging");
+       });
+     });
+     ["dragleave", "drop"].forEach((eventName) => {
+       dropzone.addEventListener(eventName, (event) => {
+         event.preventDefault();
+         dropzone.classList.remove("dragging");
+       });
+     });
+     dropzone.addEventListener("drop", (event) => {
+       const [file] = event.dataTransfer.files;
+       handleFile(file);
+     });
+   </script>
+ </body>
 +</html>
