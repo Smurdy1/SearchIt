@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SearchIt EXIF Lab</title>
-    <script src="https://cdn.jsdelivr.net/npm/exifr/dist/full.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/exifr/dist/lite.umd.js"></script>
     <style>
       :root {
         color-scheme: dark;
@@ -261,7 +261,7 @@
         "Asking the image to spill secrets...",
       ];
 
-      const priorityKeys = [
+      const visibleKeys = [
         "Make",
         "Model",
         "LensModel",
@@ -276,22 +276,6 @@
         "Software",
       ];
 
-      const fillerKeys = [
-        "CreateDate",
-        "ModifyDate",
-        "ImageWidth",
-        "ImageHeight",
-        "PixelXDimension",
-        "PixelYDimension",
-        "ColorSpace",
-        "WhiteBalance",
-        "Flash",
-        "MeteringMode",
-        "ExposureProgram",
-        "ExifVersion",
-        "SceneCaptureType",
-      ];
-
       const formatValue = (value) => {
         if (Array.isArray(value)) return value.join(", ");
         if (value instanceof Date) return value.toLocaleString();
@@ -299,55 +283,19 @@
         return String(value);
       };
 
-      const buildFallbackMeta = async (file) => {
-        const dimensions = await new Promise((resolve) => {
-          const img = new Image();
-          img.onload = () => {
-            resolve({ width: img.naturalWidth, height: img.naturalHeight });
-            URL.revokeObjectURL(img.src);
-          };
-          img.onerror = () => {
-            resolve({ width: "Unknown", height: "Unknown" });
-          };
-          img.src = URL.createObjectURL(file);
-        });
-
-        return {
-          Filename: file.name,
-          MimeType: file.type || "Unknown",
-          FileSize: `${(file.size / 1024 / 1024).toFixed(2)} MB (${file.size.toLocaleString()} bytes)`,
-          LastModified: new Date(file.lastModified),
-          ImageWidth: dimensions.width,
-          ImageHeight: dimensions.height,
-        };
-      };
-
       const renderMeta = (meta) => {
         metaGrid.innerHTML = "";
-
-        const primaryEntries = priorityKeys
+        const entries = visibleKeys
           .filter((key) => meta && meta[key] !== undefined)
           .map((key) => [key, meta[key]]);
 
-        const extraEntries = fillerKeys
-          .filter((key) => meta && meta[key] !== undefined && !priorityKeys.includes(key))
-          .map((key) => [key, meta[key]]);
-
-        const allEntries = [...primaryEntries, ...extraEntries];
-
-        Object.entries(meta || {}).forEach(([key, value]) => {
-          if (value === undefined || value === null) return;
-          if (allEntries.some(([existingKey]) => existingKey === key)) return;
-          allEntries.push([key, value]);
-        });
-
-        if (!allEntries.length) {
+        if (!entries.length) {
           metaGrid.innerHTML =
             '<p class="empty">No EXIF metadata found. Try another photo straight from a camera/phone.</p>';
           return;
         }
 
-        allEntries.forEach(([key, value]) => {
+        entries.forEach(([key, value]) => {
           const item = document.createElement("article");
           item.className = "meta-item";
           item.innerHTML = `<strong>${key}</strong><br /><code>${formatValue(value)}</code>`;
@@ -364,41 +312,6 @@
         loading.classList.remove("active");
       };
 
-      const parseExifSafely = async (file) => {
-        const parserConfigs = [
-          {
-            tiff: true,
-            ifd0: true,
-            exif: true,
-            gps: true,
-            interop: true,
-            jfif: true,
-            ihdr: true,
-            xmp: true,
-          },
-          {
-            tiff: true,
-            ifd0: true,
-            exif: true,
-            gps: true,
-            interop: true,
-            ihdr: true,
-            xmp: true,
-          },
-          true,
-        ];
-
-        for (const config of parserConfigs) {
-          try {
-            return (await exifr.parse(file, config)) || {};
-          } catch (error) {
-            // Retry with a less strict parser config.
-          }
-        }
-
-        return {};
-      };
-
       const handleFile = async (file) => {
         if (!file) return;
 
@@ -409,17 +322,11 @@
         metaGrid.innerHTML = '<p class="empty">Running spectral analysis...</p>';
 
         try {
-          await new Promise((resolve) => setTimeout(resolve, 1200));
-
-          const [fullParse, fallbackMeta] = await Promise.all([
-            parseExifSafely(file),
-            buildFallbackMeta(file),
-          ]);
-
-          renderMeta({
-            ...fallbackMeta,
-            ...(fullParse || {}),
-          });
+          await new Promise((resolve) => setTimeout(resolve, 1400));
+          const exif = await exifr.parse(file, true);
+          renderMeta(exif);
+        } catch (error) {
+          metaGrid.innerHTML = `<p class="empty">Could not parse EXIF data: ${error.message}</p>`;
         } finally {
           hideLoading();
         }
