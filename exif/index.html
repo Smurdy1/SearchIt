@@ -177,6 +177,30 @@
         margin: 0 0 14px;
       }
 
+      .meta-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+
+      .map-link {
+        display: none;
+        border: 1px solid rgba(96, 239, 255, 0.35);
+        background: linear-gradient(135deg, rgba(96, 239, 255, 0.16), rgba(139, 92, 246, 0.16));
+        color: var(--text);
+        text-decoration: none;
+        padding: 9px 12px;
+        border-radius: 999px;
+        font-size: 0.86rem;
+        white-space: nowrap;
+      }
+
+      .map-link.visible {
+        display: inline-flex;
+      }
+
       .meta-grid {
         display: grid;
         gap: 10px;
@@ -225,8 +249,8 @@
       }
     </style>
   </head>
-  <body data-app-version="v0.0.7">
-    <span class="version-badge" id="version-badge">build v0.0.7</span>
+  <body data-app-version="v0.0.8">
+    <span class="version-badge" id="version-badge">build v0.0.8</span>
     <main>
       <section class="panel hero">
         <span class="tag">SearchIt Space · EXIF Lab</span>
@@ -252,7 +276,18 @@
         </div>
 
         <div class="panel output">
-          <h2>Extracted EXIF Data</h2>
+          <div class="meta-toolbar">
+            <h2>Extracted EXIF Data</h2>
+            <a
+              class="map-link"
+              id="map-link"
+              href="#"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Open in Google Maps
+            </a>
+          </div>
           <div class="meta-grid" id="meta-grid">
             <p class="empty">No image loaded yet.</p>
           </div>
@@ -265,10 +300,11 @@
       const dropzone = document.getElementById("dropzone");
       const preview = document.getElementById("preview");
       const metaGrid = document.getElementById("meta-grid");
+      const mapLink = document.getElementById("map-link");
       const loading = document.getElementById("loading");
       const loadingText = document.getElementById("loading-text");
 
-      const APP_VERSION = "v0.0.7";
+      const APP_VERSION = "v0.0.8";
       document.getElementById("version-badge").textContent = `build ${APP_VERSION}`;
 
       const loadingMessages = [
@@ -278,26 +314,99 @@
         "Asking the image to spill secrets...",
       ];
 
-      const featuredKeys = [
-        "GPSLatitude",
-        "GPSLongitude",
-        "DateTimeOriginal",
-        "Make",
-        "Model",
-        "LensModel",
-        "ISO",
-        "FNumber",
-        "ExposureTime",
-        "FocalLength",
-        "Orientation",
-        "Software",
-      ];
-
       const formatValue = (value) => {
         if (Array.isArray(value)) return value.join(", ");
         if (value instanceof Date) return value.toLocaleString();
         if (typeof value === "object" && value !== null) return JSON.stringify(value);
         return String(value);
+      };
+
+      const getEntryWeight = ([key, value]) => key.length + formatValue(value).length;
+
+      const toDecimalCoordinate = (value, ref) => {
+        if (value === undefined || value === null) return null;
+
+        let decimal = null;
+
+        if (typeof value === "number") {
+          decimal = value;
+        } else if (Array.isArray(value) && value.length) {
+          const [degrees = 0, minutes = 0, seconds = 0] = value.map(Number);
+          decimal = degrees + minutes / 60 + seconds / 3600;
+        } else if (!Number.isNaN(Number(value))) {
+          decimal = Number(value);
+        }
+
+        if (decimal === null || Number.isNaN(decimal)) return null;
+
+        const normalizedRef = String(ref || "").trim().toUpperCase();
+        if (normalizedRef === "S" || normalizedRef === "W") {
+          decimal = -Math.abs(decimal);
+        }
+
+        return decimal;
+      };
+
+      const getMapsCoordinates = (meta) => {
+        const latitude = toDecimalCoordinate(meta?.latitude ?? meta?.GPSLatitude, meta?.GPSLatitudeRef);
+        const longitude = toDecimalCoordinate(meta?.longitude ?? meta?.GPSLongitude, meta?.GPSLongitudeRef);
+
+        if (latitude === null || longitude === null) {
+          return null;
+        }
+
+        return { latitude, longitude };
+      };
+
+      const updateMapLink = (meta) => {
+        const coordinates = getMapsCoordinates(meta);
+        if (!coordinates) {
+          mapLink.classList.remove("visible");
+          mapLink.removeAttribute("href");
+          return;
+        }
+
+        const { latitude, longitude } = coordinates;
+        mapLink.href =
+          `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${latitude},${longitude}`)}`;
+        mapLink.classList.add("visible");
+      };
+
+      const getPriorityKeys = (meta) => {
+        const keys = [];
+
+        if (meta?.latitude !== undefined) {
+          keys.push("latitude");
+        } else if (meta?.GPSLatitude !== undefined) {
+          keys.push("GPSLatitude");
+        }
+
+        if (meta?.longitude !== undefined) {
+          keys.push("longitude");
+        } else if (meta?.GPSLongitude !== undefined) {
+          keys.push("GPSLongitude");
+        }
+
+        if (meta?.latitude === undefined && meta?.longitude === undefined) {
+          if (meta?.GPSLatitudeRef !== undefined) keys.push("GPSLatitudeRef");
+          if (meta?.GPSLongitudeRef !== undefined) keys.push("GPSLongitudeRef");
+        }
+
+        [
+          "DateTimeOriginal",
+          "LastModified",
+          "Filename",
+          "Software",
+          "FileSize",
+          "ImageWidth",
+          "ImageHeight",
+          "MimeType",
+          "SubSecTimeOriginal",
+        ].forEach((key) => {
+          if (meta?.[key] !== undefined) keys.push(key);
+        });
+
+        return keys;
       };
 
       const buildFallbackMeta = async (file) => {
@@ -325,17 +434,23 @@
 
       const renderMeta = (meta) => {
         metaGrid.innerHTML = "";
+        updateMapLink(meta);
 
-        const featuredEntries = featuredKeys
+        const priorityKeys = getPriorityKeys(meta);
+
+        const featuredEntries = priorityKeys
           .filter((key) => meta && meta[key] !== undefined)
           .map((key) => [key, meta[key]]);
 
         const remainingEntries = Object.entries(meta || {})
           .filter(([key, value]) => {
             if (value === undefined || value === null) return false;
-            return !featuredKeys.includes(key);
+            return !priorityKeys.includes(key);
           })
-          .sort(([firstKey], [secondKey]) => firstKey.length - secondKey.length || firstKey.localeCompare(secondKey));
+          .sort((firstEntry, secondEntry) => {
+            return getEntryWeight(firstEntry) - getEntryWeight(secondEntry)
+              || firstEntry[0].localeCompare(secondEntry[0]);
+          });
 
         const allEntries = [...featuredEntries, ...remainingEntries];
 
