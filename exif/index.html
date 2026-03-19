@@ -75,6 +75,24 @@
        color: var(--muted);
        line-height: 1.65;
      }
+     .hero-actions {
+       margin-top: 18px;
+       display: flex;
+       flex-wrap: wrap;
+       gap: 12px;
+     }
+     .hero-actions a {
+       display: inline-flex;
+       align-items: center;
+       justify-content: center;
+       width: fit-content;
+       padding: 11px 16px;
+       border-radius: 12px;
+       text-decoration: none;
+       font-weight: 600;
+       color: #05070f;
+       background: linear-gradient(135deg, var(--accent), var(--accent-2));
+     }
      .workspace {
        display: grid;
        grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
@@ -205,6 +223,9 @@
          Upload an image to inspect EXIF tags like camera model, lens, date taken,
          geolocation, and orientation. Includes a cinematic “decoding” moment for extra drama.
        </p>
+       <div class="hero-actions">
+         <a href="/strip/">Need cleanup instead? Open EXIF Strip Lab</a>
+       </div>
      </section>
      <section class="workspace">
        <div class="panel uploader">
