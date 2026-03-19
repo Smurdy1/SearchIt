@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SearchIt EXIF Strip Lab</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #070b14;
+        --panel: rgba(20, 28, 49, 0.72);
+        --panel-border: rgba(126, 189, 255, 0.24);
+        --text: #eef3ff;
+        --muted: #9db0d7;
+        --accent: #60efff;
+        --accent-2: #8b5cf6;
+        --ok: #38f2a7;
+        --warn: #fbbf24;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+        color: var(--text);
+        background: radial-gradient(circle at 20% 0%, #263f77 0, transparent 35%),
+          radial-gradient(circle at 80% 20%, #4b248e 0, transparent 32%), var(--bg);
+      }
+
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        background-image: linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+        background-size: 26px 26px;
+      }
+
+      main {
+        width: min(1180px, 94vw);
+        margin: 36px auto 60px;
+        display: grid;
+        gap: 18px;
+      }
+
+      .panel {
+        border: 1px solid var(--panel-border);
+        background: var(--panel);
+        backdrop-filter: blur(14px);
+        border-radius: 24px;
+        box-shadow: 0 30px 60px rgba(3, 6, 18, 0.55);
+      }
+
+      .hero,
+      .uploader,
+      .report,
+      .preview-panel {
+        padding: 24px;
+      }
+
+      .tag {
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+        border-radius: 999px;
+        padding: 8px 14px;
+        font-size: 0.85rem;
+        color: #d8edff;
+        background: linear-gradient(135deg, rgba(96, 239, 255, 0.2), rgba(139, 92, 246, 0.2));
+      }
+
+      h1,
+      h2,
+      h3 {
+        margin-top: 0;
+      }
+
+      h1 {
+        margin: 16px 0 12px;
+        font-size: clamp(2rem, 4vw, 3.2rem);
+      }
+
+      .hero p,
+      .support-copy,
+      .report-intro,
+      .note-list {
+        color: var(--muted);
+        line-height: 1.65;
+      }
+
+      .hero-actions {
+        margin-top: 18px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      .hero-actions a,
+      .cta,
+      .secondary-cta {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: fit-content;
+        padding: 11px 16px;
+        border-radius: 12px;
+        border: none;
+        text-decoration: none;
+        cursor: pointer;
+        font-weight: 600;
+      }
+
+      .cta {
+        color: #05070f;
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      }
+
+      .secondary-cta {
+        color: var(--text);
+        background: rgba(4, 11, 27, 0.6);
+        border: 1px solid rgba(157, 176, 215, 0.2);
+      }
+
+      .workspace {
+        display: grid;
+        grid-template-columns: minmax(320px, 0.95fr) minmax(0, 1.45fr);
+        gap: 18px;
+      }
+
+      .dropzone {
+        width: 100%;
+        border: 1.5px dashed rgba(96, 239, 255, 0.45);
+        border-radius: 18px;
+        padding: 22px;
+        text-align: center;
+        transition: 0.2s ease;
+        cursor: pointer;
+        background: rgba(3, 11, 24, 0.55);
+      }
+
+      .dropzone:hover,
+      .dropzone.dragging {
+        border-color: #9ea7ff;
+        transform: translateY(-2px);
+        box-shadow: 0 14px 28px rgba(96, 239, 255, 0.18);
+      }
+
+      .dropzone p,
+      .help-copy,
+      .small-note {
+        color: var(--muted);
+      }
+
+      .loading {
+        margin-top: 14px;
+        display: none;
+        gap: 10px;
+        align-items: center;
+        color: #dbe9ff;
+      }
+
+      .loading.active {
+        display: flex;
+      }
+
+      .dots {
+        display: inline-flex;
+        gap: 4px;
+      }
+
+      .dots span {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        animation: pulse 0.8s infinite ease-in-out;
+      }
+
+      .dots span:nth-child(2) {
+        animation-delay: 0.16s;
+      }
+
+      .dots span:nth-child(3) {
+        animation-delay: 0.32s;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          transform: scale(0.75);
+          opacity: 0.4;
+        }
+        50% {
+          transform: scale(1.2);
+          opacity: 1;
+        }
+      }
+
+      .preview-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      .preview-card {
+        display: grid;
+        gap: 12px;
+        background: rgba(4, 11, 27, 0.72);
+        border: 1px solid rgba(157, 176, 215, 0.2);
+        border-radius: 18px;
+        padding: 16px;
+      }
+
+      .preview-card img {
+        width: 100%;
+        aspect-ratio: 4 / 3;
+        object-fit: contain;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(157, 176, 215, 0.16);
+      }
+
+      .empty-state {
+        min-height: 260px;
+        display: grid;
+        place-items: center;
+        text-align: center;
+        color: var(--muted);
+        border: 1px dashed rgba(157, 176, 215, 0.25);
+        border-radius: 14px;
+        padding: 18px;
+      }
+
+      .report-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+        margin-top: 16px;
+      }
+
+      .report-item {
+        padding: 14px;
+        border-radius: 16px;
+        background: rgba(4, 11, 27, 0.72);
+        border: 1px solid rgba(157, 176, 215, 0.2);
+      }
+
+      .report-item span {
+        display: block;
+        color: var(--muted);
+        font-size: 0.85rem;
+        margin-bottom: 6px;
+      }
+
+      .report-item strong {
+        word-break: break-word;
+      }
+
+      .note-list {
+        margin: 16px 0 0;
+        padding-left: 18px;
+      }
+
+      .status-banner {
+        margin-top: 16px;
+        padding: 14px 16px;
+        border-radius: 16px;
+        border: 1px solid rgba(157, 176, 215, 0.2);
+        background: rgba(4, 11, 27, 0.72);
+      }
+
+      .status-banner.warn {
+        border-color: rgba(251, 191, 36, 0.35);
+        color: #ffe5a8;
+      }
+
+      .status-banner.ok {
+        border-color: rgba(56, 242, 167, 0.35);
+        color: #d9ffed;
+      }
+
+      .version-badge {
+        position: fixed;
+        right: 10px;
+        bottom: 8px;
+        font-size: 0.65rem;
+        letter-spacing: 0.04em;
+        color: rgba(219, 233, 255, 0.65);
+        background: rgba(4, 11, 27, 0.65);
+        border: 1px solid rgba(157, 176, 215, 0.18);
+        padding: 3px 7px;
+        border-radius: 999px;
+        z-index: 5;
+      }
+
+      @media (max-width: 900px) {
+        .workspace,
+        .preview-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <span class="version-badge" id="version-badge"></span>
+    <main>
+      <section class="panel hero">
+        <span class="tag">SearchIt Space · EXIF Strip Lab</span>
+        <h1>Strip image metadata and download a cleaner copy.</h1>
+        <p>
+          Drop in a photo, let the browser re-render the visible pixels, and export a new file
+          with EXIF, XMP, IPTC, and similar embedded metadata removed wherever canvas re-encoding
+          can reasonably strip it.
+        </p>
+        <div class="hero-actions">
+          <a class="cta" href="#workspace">Start scrubbing</a>
+          <a class="secondary-cta" href="/exif/">Open EXIF viewer</a>
+        </div>
+      </section>
+
+      <section class="workspace" id="workspace">
+        <div class="panel uploader">
+          <input id="file-input" type="file" accept="image/*" hidden />
+          <button class="dropzone" id="dropzone" type="button">
+            <strong>Drop image here or click to upload</strong>
+            <p>Best results: JPEG, PNG, and WebP still images.</p>
+          </button>
+          <p class="support-copy">
+            The cleaner works entirely in your browser. It is ideal for still images, but animated
+            files, vector formats, or codecs the browser cannot decode may need separate tools.
+          </p>
+          <div class="loading" id="loading">
+            <span id="loading-text">Rebuilding pixels without baggage...</span>
+            <span class="dots"><span></span><span></span><span></span></span>
+          </div>
+          <div class="status-banner" id="status-banner">
+            Upload a file to generate a scrubbed copy and download link.
+          </div>
+          <div class="hero-actions">
+            <button class="cta" id="download-button" type="button" disabled>Download cleaned image</button>
+            <button class="secondary-cta" id="reset-button" type="button">Reset</button>
+          </div>
+          <p class="small-note">
+            Note: stripping metadata may also flatten orientation into the pixels and can change
+            file size or format depending on browser support.
+          </p>
+        </div>
+
+        <div class="panel preview-panel">
+          <h2>Before / After</h2>
+          <div class="preview-grid">
+            <article class="preview-card">
+              <h3>Original upload</h3>
+              <img id="original-preview" alt="Original preview" hidden />
+              <div class="empty-state" id="original-empty">No source image loaded yet.</div>
+            </article>
+            <article class="preview-card">
+              <h3>Scrubbed output</h3>
+              <img id="clean-preview" alt="Metadata-stripped preview" hidden />
+              <div class="empty-state" id="clean-empty">The cleaned image will appear here.</div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel report">
+        <h2>Sanitization report</h2>
+        <p class="report-intro">
+          This report summarizes how the file was exported. Re-encoding through canvas normally
+          removes camera metadata, GPS, editing history, and most ancillary chunks that do not
+          survive the new image export.
+        </p>
+        <div class="report-grid" id="report-grid">
+          <article class="report-item">
+            <span>Status</span>
+            <strong>Waiting for upload</strong>
+          </article>
+        </div>
+        <ul class="note-list">
+          <li>Animated GIF/WebP files may lose animation because this tool exports a single still frame.</li>
+          <li>SVG files are not raster-cleaned here because they can embed scripts or external references.</li>
+          <li>Browsers may choose PNG fallback when the original format cannot be safely re-exported.</li>
+        </ul>
+      </section>
+    </main>
+
+    <script>
+      const APP_VERSION = "v0.0.1";
+      document.getElementById("version-badge").textContent = `build ${APP_VERSION}`;
+
+      const fileInput = document.getElementById("file-input");
+      const dropzone = document.getElementById("dropzone");
+      const loading = document.getElementById("loading");
+      const loadingText = document.getElementById("loading-text");
+      const statusBanner = document.getElementById("status-banner");
+      const downloadButton = document.getElementById("download-button");
+      const resetButton = document.getElementById("reset-button");
+      const originalPreview = document.getElementById("original-preview");
+      const cleanPreview = document.getElementById("clean-preview");
+      const originalEmpty = document.getElementById("original-empty");
+      const cleanEmpty = document.getElementById("clean-empty");
+      const reportGrid = document.getElementById("report-grid");
+
+      const loadingMessages = [
+        "Rebuilding pixels without baggage...",
+        "Evicting camera breadcrumbs...",
+        "Vacuuming EXIF, XMP, and sidecar vibes...",
+        "Flattening the image into a cleaner export...",
+      ];
+
+      let originalObjectUrl = "";
+      let cleanedObjectUrl = "";
+      let cleanedBlob = null;
+      let cleanedFileName = "";
+
+      const formatBytes = (bytes) => {
+        if (!Number.isFinite(bytes)) return "Unknown";
+        if (bytes === 0) return "0 B";
+        const units = ["B", "KB", "MB", "GB"];
+        const exponent = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+        const value = bytes / 1024 ** exponent;
+        return `${value.toFixed(value >= 10 || exponent === 0 ? 0 : 2)} ${units[exponent]}`;
+      };
+
+      const setStatus = (message, variant = "") => {
+        statusBanner.textContent = message;
+        statusBanner.className = `status-banner${variant ? ` ${variant}` : ""}`;
+      };
+
+      const setLoading = (active) => {
+        loadingText.textContent = loadingMessages[Math.floor(Math.random() * loadingMessages.length)];
+        loading.classList.toggle("active", active);
+      };
+
+      const updateReport = (items) => {
+        reportGrid.innerHTML = items
+          .map(
+            ({ label, value }) => `
+              <article class="report-item">
+                <span>${label}</span>
+                <strong>${value}</strong>
+              </article>
+            `
+          )
+          .join("");
+      };
+
+      const revokeUrls = () => {
+        if (originalObjectUrl) {
+          URL.revokeObjectURL(originalObjectUrl);
+          originalObjectUrl = "";
+        }
+        if (cleanedObjectUrl) {
+          URL.revokeObjectURL(cleanedObjectUrl);
+          cleanedObjectUrl = "";
+        }
+      };
+
+      const resetState = () => {
+        revokeUrls();
+        cleanedBlob = null;
+        cleanedFileName = "";
+        originalPreview.hidden = true;
+        cleanPreview.hidden = true;
+        originalPreview.removeAttribute("src");
+        cleanPreview.removeAttribute("src");
+        originalEmpty.hidden = false;
+        cleanEmpty.hidden = false;
+        downloadButton.disabled = true;
+        fileInput.value = "";
+        updateReport([{ label: "Status", value: "Waiting for upload" }]);
+        setStatus("Upload a file to generate a scrubbed copy and download link.");
+      };
+
+      const waitForImage = (src) =>
+        new Promise((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = () => reject(new Error("Unable to decode this image in the browser."));
+          img.src = src;
+        });
+
+      const canEncodeType = (canvas, type) =>
+        new Promise((resolve) => {
+          canvas.toBlob((blob) => resolve(Boolean(blob && blob.type === type)), type, 0.92);
+        });
+
+      const chooseOutputType = async (canvas, file) => {
+        const preferredTypes = [file.type].filter(Boolean);
+        if (!preferredTypes.includes("image/png")) preferredTypes.push("image/png");
+        if (!preferredTypes.includes("image/webp")) preferredTypes.push("image/webp");
+        if (!preferredTypes.includes("image/jpeg")) preferredTypes.push("image/jpeg");
+        for (const type of preferredTypes) {
+          if (["image/jpeg", "image/png", "image/webp"].includes(type) && (await canEncodeType(canvas, type))) {
+            return type;
+          }
+        }
+        return "image/png";
+      };
+
+      const blobFromCanvas = (canvas, type, quality) =>
+        new Promise((resolve, reject) => {
+          canvas.toBlob((blob) => {
+            if (blob) {
+              resolve(blob);
+              return;
+            }
+            reject(new Error("This browser could not export the cleaned image."));
+          }, type, quality);
+        });
+
+      const createCleanCopy = async (file) => {
+        if (file.type === "image/svg+xml") {
+          throw new Error("SVG files are not supported for metadata stripping in this tool.");
+        }
+
+        originalObjectUrl = URL.createObjectURL(file);
+        const sourceImage = await waitForImage(originalObjectUrl);
+        originalPreview.src = originalObjectUrl;
+        originalPreview.hidden = false;
+        originalEmpty.hidden = true;
+
+        const canvas = document.createElement("canvas");
+        canvas.width = sourceImage.naturalWidth;
+        canvas.height = sourceImage.naturalHeight;
+
+        const context = canvas.getContext("2d", { alpha: true, colorSpace: "srgb" });
+        if (!context) {
+          throw new Error("Canvas is unavailable in this browser.");
+        }
+        context.drawImage(sourceImage, 0, 0);
+
+        const outputType = await chooseOutputType(canvas, file);
+        const quality = outputType === "image/png" ? undefined : 0.92;
+        const blob = await blobFromCanvas(canvas, outputType, quality);
+        const extensionMap = {
+          "image/jpeg": "jpg",
+          "image/png": "png",
+          "image/webp": "webp",
+        };
+        const baseName = (file.name || "image").replace(/\.[^.]+$/, "");
+        cleanedFileName = `${baseName}-stripped.${extensionMap[outputType] || "png"}`;
+        cleanedBlob = blob;
+        cleanedObjectUrl = URL.createObjectURL(blob);
+        cleanPreview.src = cleanedObjectUrl;
+        cleanPreview.hidden = false;
+        cleanEmpty.hidden = true;
+        downloadButton.disabled = false;
+
+        const delta = blob.size - file.size;
+        const changeLabel = `${delta >= 0 ? "+" : "-"}${formatBytes(Math.abs(delta))}`;
+        updateReport([
+          { label: "Input file", value: `${file.name} · ${formatBytes(file.size)}` },
+          { label: "Output file", value: `${cleanedFileName} · ${formatBytes(blob.size)}` },
+          { label: "Export type", value: outputType },
+          { label: "Dimensions", value: `${sourceImage.naturalWidth} × ${sourceImage.naturalHeight}` },
+          { label: "Size delta", value: changeLabel },
+          { label: "Expected stripping", value: "EXIF, GPS, XMP, IPTC, and edit-history metadata removed on re-export" },
+        ]);
+
+        const formatChanged = file.type && file.type !== outputType;
+        const message = formatChanged
+          ? `Clean copy ready. The browser exported ${outputType} instead of ${file.type} for better compatibility.`
+          : "Clean copy ready. The exported image should no longer carry the original embedded metadata.";
+        setStatus(message, "ok");
+      };
+
+      const handleFile = async (file) => {
+        if (!file) return;
+        resetState();
+        setLoading(true);
+        setStatus("Scrubbing metadata and rebuilding the image...", "");
+        try {
+          await createCleanCopy(file);
+        } catch (error) {
+          updateReport([
+            { label: "Status", value: "Failed" },
+            { label: "Reason", value: error.message || "Unknown error" },
+            { label: "Tip", value: "Try JPEG, PNG, or WebP still images for best results." },
+          ]);
+          setStatus(error.message || "Unable to clean this file.", "warn");
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      dropzone.addEventListener("click", () => fileInput.click());
+      fileInput.addEventListener("change", (event) => handleFile(event.target.files[0]));
+
+      ["dragenter", "dragover"].forEach((eventName) => {
+        dropzone.addEventListener(eventName, (event) => {
+          event.preventDefault();
+          dropzone.classList.add("dragging");
+        });
+      });
+
+      ["dragleave", "drop"].forEach((eventName) => {
+        dropzone.addEventListener(eventName, (event) => {
+          event.preventDefault();
+          dropzone.classList.remove("dragging");
+        });
+      });
+
+      dropzone.addEventListener("drop", (event) => handleFile(event.dataTransfer.files[0]));
+
+      downloadButton.addEventListener("click", () => {
+        if (!cleanedBlob || !cleanedObjectUrl) return;
+        const anchor = document.createElement("a");
+        anchor.href = cleanedObjectUrl;
+        anchor.download = cleanedFileName || "image-stripped.png";
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+      });
+
+      resetButton.addEventListener("click", resetState);
+      resetState();
+    </script>
+  </body>
+</html>
