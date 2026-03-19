@@ -281,6 +281,69 @@
         font-size: 0.9rem;
       }
 
+      .toolkit-panel {
+        background: linear-gradient(160deg, rgba(110, 231, 255, 0.08), rgba(139, 92, 246, 0.08));
+        border-radius: 24px;
+        padding: 24px;
+        display: grid;
+        gap: 18px;
+      }
+
+      .toolkit-header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .toolkit-header h2 {
+        margin: 0;
+        font-size: 1.35rem;
+      }
+
+      .toolkit-header p {
+        margin: 0;
+        color: var(--muted);
+        max-width: 680px;
+      }
+
+      .tool-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 16px;
+      }
+
+      .tool-card {
+        background: rgba(12, 17, 34, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 18px;
+        padding: 18px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .tool-card h3 {
+        margin: 0;
+      }
+
+      .tool-card p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.55;
+      }
+
+      .tool-card a {
+        width: fit-content;
+        padding: 10px 14px;
+        border-radius: 12px;
+        text-decoration: none;
+        font-weight: 600;
+        color: #05070f;
+        background: linear-gradient(135deg, var(--brand), var(--brand-2));
+      }
+
+
       @media (max-width: 720px) {
         .search-controls {
           grid-template-columns: 1fr;
@@ -304,6 +367,37 @@
     </header>
 
     <main>
+
+      <section class="toolkit-panel">
+        <div class="toolkit-header">
+          <div>
+            <h2>Side Missions</h2>
+            <p>
+              Need to inspect or sanitize image metadata before you share a file?
+              Launch the dedicated SearchIt image tools below.
+            </p>
+          </div>
+        </div>
+        <div class="tool-grid">
+          <article class="tool-card">
+            <h3>EXIF Lab</h3>
+            <p>
+              Upload a photo and inspect the metadata footprint, including camera,
+              timestamps, dimensions, and any GPS clues the file exposes.
+            </p>
+            <a href="/exif/">Open EXIF Lab</a>
+          </article>
+          <article class="tool-card">
+            <h3>EXIF Strip Lab</h3>
+            <p>
+              Re-render an image in the browser to strip EXIF, XMP, and other embedded
+              metadata that can reasonably be removed client-side, then download the clean copy.
+            </p>
+            <a href="/strip/">Open EXIF Strip Lab</a>
+          </article>
+        </div>
+      </section>
+
       <section class="search-panel">
         <div class="search-controls">
           <input
